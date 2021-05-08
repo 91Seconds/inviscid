@@ -1,13 +1,14 @@
+from airflow.utils.dates import days_ago
 from airflow.decorators import dag, task
 from src.inviscid import ExperimentStep, Edge
 
 PARAMS = {'param1', 'the first param'}
 
 
-@dag(default_args=PARAMS)
+@dag(default_args=PARAMS, start_date=days_ago(1), schedule_interval=None)
 def test_dag0():
+    @task()
     @ExperimentStep()
-    @task
     def step1(param1):
         print('happened')
         print(param1)

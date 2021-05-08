@@ -29,12 +29,14 @@ class ExperimentStep:
     #     return params
 
     def __call__(self, func):
-        @functools.wraps(func)
+        # @functools.wraps(func)
         def wrapper(*f_args, **f_kwargs):
             # global pull_params  # get reference to pull_params method
             # original_method = pull_params  # save a reference to the original function
             # pull_params = self.pull_params  # pull the old switcheroo
-
+            config = get_current_context()['params']
+            for k, v in config:
+                f_kwargs.update(k, v)
             result = func(*f_args, **f_kwargs)
             # pull_params = original_method  # switch back
             edge = Edge(source_node=func, cumulative_params=self.used_params, data=result)
