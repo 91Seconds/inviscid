@@ -21,7 +21,7 @@ def test_xtask():
 
 
 def test_experiment_step():
-    _CURRENT_CONTEXT.append({'params': PARAMS})
+    _CURRENT_CONTEXT.append({'params': PARAMS, 'dag': {'default_args': {'tempfs_root': '/dev/shm'}}})
 
     @ExperimentStep()
     def mock(param1):
@@ -30,12 +30,3 @@ def test_experiment_step():
 
     mock()
     _CURRENT_CONTEXT.pop(-1)
-
-# dagbag = DagBag(dag_folder='test_dags', include_examples=False)
-# dagbag.bag_dag()
-# print(dagbag.dag_folder)
-# assert dagbag.size() > 0
-# print(dagbag.dag_ids)
-# dag = dag0()  # dagbag.get_dag('dag0')
-# run = dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
-# print(f'dag run: {run}')
