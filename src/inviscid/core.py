@@ -1,17 +1,17 @@
 import functools
 import hashlib
 import inspect
-import json
-import os
 import pickle
-from collections import OrderedDict
 from inspect import signature
 from typing import Callable, Dict, Optional, TypeVar, cast
 
+import json
+import os
 from airflow.exceptions import AirflowException
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import _PythonDecoratedOperator
 from airflow.operators.python import get_current_context
+from collections import OrderedDict
 
 
 class Edge:
@@ -75,6 +75,9 @@ class Edge:
         self.data = data
         self.ran_this_time = ran_this_time
 
+    def __repr__(self):
+        return f'Edge(cumulative_params: {self.cumulative_params}, data: {self.data}, ran_this_time: {self.ran_this_time})'
+
 
 class ExperimentStep:
     clean = False
@@ -93,17 +96,20 @@ class ExperimentStep:
     def __call__(self, func):
         # @functools.wraps(func)
         def wrapper(*f_args, **f_kwargs):
+            # must make sure edges in f_args are upacked and their contents passed to the functions *args and kwargs go to kwargs
             skip = True
             if self.impure:
                 skip = False
-
             incoming_edges = []
-            for arg in f_args:
+            f_args = list(f_args)
+            for idx, arg in enumerate(f_args):
                 if type(arg) is Edge:
-                    incoming_edges.append(Edge)
-            for kwarg in f_kwargs.values():
+                    incoming_edges.append(arg)
+                    f_args[idx] = arg.data
+            for key, kwarg in f_kwargs.items():
                 if type(kwarg) is Edge:
                     incoming_edges.append(kwarg)
+                    f_kwargs[key] = kwarg.data
             incoming_edges_ran = [edge.ran_this_time for edge in incoming_edges]
             if any(incoming_edges_ran):
                 skip = False
@@ -117,7 +123,8 @@ class ExperimentStep:
 
             cumulative_config = super_edge.cumulative_params
             for func_param in func_params:
-                cumulative_config[func_param] = total_config[func_param]
+                if func_param in total_config.keys():
+                    cumulative_config[func_param] = total_config[func_param]
 
             # sort dict before stringing to make hashing permutatio invariant.
             cumulative_config = OrderedDict(sorted(cumulative_config.items(), key=lambda t: t[0]))
@@ -125,7 +132,6 @@ class ExperimentStep:
             func_param_string = str(cumulative_config).encode('ascii')
             cache_dir_name = f'{func.__name__}_{hashlib.md5(func_param_string).hexdigest()}'
             cache_dir = os.path.join(self.root_path, cache_dir_name)
-            print(f'cache_dir: {cache_dir}')
             if not os.path.exists(cache_dir):
                 skip = False
                 os.mkdir(cache_dir)

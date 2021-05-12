@@ -1,4 +1,15 @@
 # Inviscid
+## Potential Features
+* A clean mode where we can clean outputs like a build system and be sure that we're now running from scratch and not using caches.
+
+* Integrate tensorboard into the logs viewer in the airflow web ui.  (will need more airflow integration to do that.)
+
+* Allow group theoretic isomorphisms.
+
+* Allow non functional tasks
+
+* Allow any task to be frozen
+
 ## Design Problems
 * One of the essential features of this is not re rerunning tasks that don't need to be rerun.  A task does not need to be rerun if it is a pure function, and it has already been run and outputs cached.  If we keep track of which inputs a task receives then we can check only those parameters.  One problem is that we need to know these parameters before we run the function in order to decide whether we have to run the parameters.  There are a few solutions to this problem, some of which are not very nice.
     * We give a set of config keys as a function attribute.
@@ -13,4 +24,8 @@
 
 * Where at should the xCom pointer logic happen.  It could happen in the inner decorator or it could happen in the backend.  If it happens on the inner decorator then on serialise, the backend gets passed a path string only.  Then on deserialise,  the backend gets an xcom encoded string and decodes it to give a path string then passes the string back to the inner decorator which does all the loading.  I think it doesn't matter where it happens which means it's best not to have a custom backend because it's more work.
 
-* we don't need the `already_ran` flag on disk because if it exists with a parameter file then it was already run with that parameter file.  
+* we don't need the `already_ran` flag on disk because if it exists with a parameter file then it was already run with that parameter file.
+
+* What about defining a task with a single decorated function and then running two instances of it with different config?   One approach is to mandate one xtask decorated function per task and if there's a lot of overlap between tasks then extract a common method from the contents of the xtask decorated function.  I think this is similar to tf 2.0 and the @tf.function decorator.
+
+* We can keep track of config changes and data changes but how do we track function behavior changes?  Is there a feasible way to check if two python functions do the same thing? Ie, the function run last time and the function this time.
