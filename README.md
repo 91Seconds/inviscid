@@ -1,4 +1,6 @@
 # Inviscid
+Inviscid is not trying to make your code more declarative or more expressive.  It's trying allow you to write the same old code you always have but give you repeatability.
+
 ## Potential Features
 * A clean mode where we can clean outputs like a build system and be sure that we're now running from scratch and not using caches.
 
@@ -9,6 +11,10 @@
 * Allow non functional tasks
 
 * Allow any task to be frozen
+
+* Translation dictionaries to allow renaming of methods, method arguments, and dag params.
+
+* Make use of gusty to restore a subdag from a cache.
 
 ## Design Problems
 * One of the essential features of this is not re rerunning tasks that don't need to be rerun.  A task does not need to be rerun if it is a pure function, and it has already been run and outputs cached.  If we keep track of which inputs a task receives then we can check only those parameters.  One problem is that we need to know these parameters before we run the function in order to decide whether we have to run the parameters.  There are a few solutions to this problem, some of which are not very nice.

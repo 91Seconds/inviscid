@@ -1,17 +1,17 @@
 import functools
 import hashlib
 import inspect
+import json
+import os
 import pickle
+from collections import OrderedDict
 from inspect import signature
 from typing import Callable, Dict, Optional, TypeVar, cast
 
-import json
-import os
 from airflow.exceptions import AirflowException
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import _PythonDecoratedOperator
 from airflow.operators.python import get_current_context
-from collections import OrderedDict
 
 
 class Edge:
@@ -96,6 +96,7 @@ class ExperimentStep:
     def __call__(self, func):
         # @functools.wraps(func)
         def wrapper(*f_args, **f_kwargs):
+            print(f'f_args: {f_args}, f_kwargs: {f_kwargs}')
             # must make sure edges in f_args are upacked and their contents passed to the functions *args and kwargs go to kwargs
             skip = True
             if self.impure:
@@ -127,7 +128,8 @@ class ExperimentStep:
                     cumulative_config[func_param] = total_config[func_param]
 
             # sort dict before stringing to make hashing permutatio invariant.
-            cumulative_config = OrderedDict(sorted(cumulative_config.items(), key=lambda t: t[0]))
+            if cumulative_config:
+                cumulative_config = OrderedDict(sorted(cumulative_config.items(), key=lambda t: t[0]))
 
             func_param_string = str(cumulative_config).encode('ascii')
             cache_dir_name = f'{func.__name__}_{hashlib.md5(func_param_string).hexdigest()}'
@@ -140,7 +142,8 @@ class ExperimentStep:
             if skip:
                 return Edge.decache(cache_dir)
             else:
-                result = func(*f_args, cumulative_config)
+                print(f'f_args: {f_args}, cumulative_config: {cumulative_config}')
+                result = func(*f_args, **cumulative_config)
                 edge = Edge(cumulative_params=cumulative_config, data=result, ran_this_time=True)
                 edge.cache(cache_dir)
                 return edge
@@ -162,6 +165,7 @@ class ExperimentStep:
 T = TypeVar("T", bound=Callable)
 
 
+# TODO: make xtask rely only on the public task api to ensure 2.x compatibility
 def xtask(
         python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ) -> Callable[[T], T]:
@@ -186,12 +190,6 @@ def xtask(
         multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
 
     def wrapper(f: T):
-        def no_current_context():
-            raise AirflowException(
-                "Current context cannot be requested inside of an xtask. "
-                "Please ingest all input through function parameters."
-            )
-
         """
         Python wrapper to generate PythonDecoratedOperator out of simple python functions.
         Used for Airflow Decorated interface
